@@ -1,1 +1,1 @@
-from exeUpdater.exeUpdater import Update
+from updater.updater import Update

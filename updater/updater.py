@@ -7,7 +7,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QStyle
 
 class Update(object):
-    def __init__(self, config, applicationUrl, appName, path, displayErrorMessages = True, autoUpdate = False, versionFilePath = None, applicationPath = None):
+    def __init__(self, config, applicationUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None):
         self.config = config
         self.serverDomain = config['authDomain']
         self.applicationUrl = applicationUrl
@@ -16,8 +16,7 @@ class Update(object):
         self.autoUpdate = autoUpdate
         self.path = path
 
-        self.versionFilePath = versionFilePath
-        self.applicationPath = applicationPath
+        self.debugPath = debugPath
 
 
     def checkUpdate(self):
@@ -29,7 +28,7 @@ class Update(object):
         self.firebase = firebasePort.Database(self.config)
         cloudVersion = self.firebase.getData(self.path)
         
-        if self.versionFilePath is None:
+        if self.debugPath is None:
             if os.path.exists('version.json'):
                 with open('version.json', 'r') as json_file:
                     data = json.load(json_file)
@@ -42,8 +41,8 @@ class Update(object):
                 with open('version.json', 'w') as f:
                     json.dump(data, f)
         else:
-            if os.path.exists(f'{self.versionFilePath}/version.json'):
-                with open(f'{self.versionFilePath}/version.json', 'r') as json_file:
+            if os.path.exists(f'{self.debugPath}/version.json'):
+                with open(f'{self.debugPath}/version.json', 'r') as json_file:
                     data = json.load(json_file)
                     localVersion = data['program']['version']
                     skipVersion = data['program']['skipversion']
@@ -51,7 +50,7 @@ class Update(object):
                 data = {'program': {'version': '0.0.1', 'skipversion': '0.0.0'}}
                 localVersion = data['program']['version']
                 skipVersion = data['program']['skipversion']
-                with open(f'{self.versionFilePath}/version.json', 'w') as f:
+                with open(f'{self.debugPath}/version.json', 'w') as f:
                     json.dump(data, f)
             
 
@@ -101,20 +100,20 @@ class Update(object):
             dir_path = os.path.dirname(__file__)
         urllib.request.urlretrieve(self.applicationUrl, f'{dir_path}/new_version.exe')
 
-        if self.versionFilePath is None:
+        if self.debugPath is None:
             with open('version.json', 'r') as json_file:
                 data = json.load(json_file)
                 data['program']['version'] = nv
                 with open('version.json', 'w') as g:
                     json.dump(data, g)
         else:
-            with open(f'{self.versionFilePath}/version.json', 'r') as json_file:
+            with open(f'{self.debugPath}/version.json', 'r') as json_file:
                 data = json.load(json_file)
                 data['program']['version'] = nv
-                with open(f'{self.versionFilePath}/version.json', 'w') as g:
+                with open(f'{self.debugPath}/version.json', 'w') as g:
                     json.dump(data, g)
 
-        if self.applicationPath is None:
+        if self.debugPath is None:
             with open('rename.bat', 'w') as rn:
                 rn.write(f'''
                     timeout 1
@@ -125,7 +124,7 @@ class Update(object):
             devnull = open(os.devnull, 'wb')
             subprocess.Popen(['rename.bat'], shell=False)
         else:
-            with open(f'{self.applicationPath}/rename.bat', 'w') as rn:
+            with open(f'{self.debugPath}/rename.bat', 'w') as rn:
                 rn.write(f'''
                     timeout 1
                     del /f {self.appName}.exe
@@ -133,7 +132,7 @@ class Update(object):
                     {self.appName}.exe
                 ''')
             devnull = open(os.devnull, 'wb')
-            subprocess.Popen([f'{self.applicationPath}/rename.bat'], shell=False)
+            subprocess.Popen([f'{self.debugPath}/rename.bat'], shell=False)
         sys.exit()
 
 class MessageBox(QMessageBox):
