@@ -29,10 +29,6 @@ class Update(object):
             self.applicationDir = f'{dir_}/assets'
         else:
             self.applicationDir = dir_
-        
-        
-
-        print(self.debugPath)
 
 
     def checkUpdate(self):
