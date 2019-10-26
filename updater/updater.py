@@ -6,17 +6,33 @@ from PyQt5.Qt import QMessageBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QStyle
 
+'''Main class for updater'''
 class Update(object):
-    def __init__(self, config, applicationUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None):
+    '''Initialise (optional-)arguments and make them self'''
+    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False):
         self.config = config
         self.serverDomain = config['authDomain']
-        self.applicationUrl = applicationUrl
+        self.webAppUrl = webAppUrl
         self.appName = appName
         self.displayErrorMessages = displayErrorMessages
         self.autoUpdate = autoUpdate
         self.path = path
-
         self.debugPath = debugPath
+    
+        #Check if program is in exe; if true deactivate debugPath for library
+        if getattr(sys, 'frozen', False):
+            dir_ = os.path.dirname(sys.executable)
+        else:
+            dir_ = self.debugPath
+        
+        if assetsFolder is True:
+            self.applicationDir = f'{dir_}/assets'
+        else:
+            self.applicationDir = dir_
+        
+        
+
+        print(self.debugPath)
 
 
     def checkUpdate(self):
@@ -28,33 +44,20 @@ class Update(object):
         self.firebase = firebasePort.Database(self.config)
         cloudVersion = self.firebase.getData(self.path)
         
-        if self.debugPath is None:
-            if os.path.exists('version.json'):
-                with open('version.json', 'r') as json_file:
-                    data = json.load(json_file)
-                    localVersion = data['program']['version']
-                    skipVersion = data['program']['skipversion']
-            else:
-                data = {'program': {'version': '0.0.1', 'skipversion': '0.0.0'}}
-                localVersion = data['program']['version']
-                skipVersion = data['program']['skipversion']
-                with open('version.json', 'w') as f:
-                    json.dump(data, f)
-        else:
-            if os.path.exists(f'{self.debugPath}/version.json'):
-                with open(f'{self.debugPath}/version.json', 'r') as json_file:
-                    data = json.load(json_file)
-                    localVersion = data['program']['version']
-                    skipVersion = data['program']['skipversion']
-            else:
-                data = {'program': {'version': '0.0.1', 'skipversion': '0.0.0'}}
-                localVersion = data['program']['version']
-                skipVersion = data['program']['skipversion']
-                with open(f'{self.debugPath}/version.json', 'w') as f:
-                    json.dump(data, f)
-            
-
         
+        if os.path.exists(f'{self.applicationDir}/version.json'):
+            with open(f'{self.applicationDir}/version.json', 'r') as json_file:
+                data = json.load(json_file)
+                localVersion = data['program']['version']
+                skipVersion = data['program']['skipversion']
+        else:
+            os.mkdir(self.applicationDir)
+            data = {'program': {'version': '0.0.1', 'skipversion': '0.0.0'}}
+            localVersion = data['program']['version']
+            skipVersion = data['program']['skipversion']
+            with open(f'{self.applicationDir}/version.json', 'w') as f:
+                json.dump(data, f)
+                
         if cloudVersion == skipVersion:
             return
 
@@ -83,8 +86,6 @@ class Update(object):
                 json.dump(data, g)
         elif retval == 2:
             return
-        
-
 
     def internet_connection(self, domain):
         try:
@@ -96,24 +97,18 @@ class Update(object):
     def updateApplication(self, nv):
         if getattr(sys, 'frozen', False):
             dir_path = os.path.dirname(sys.executable)
-        elif __file__:
-            dir_path = os.path.dirname(__file__)
-        urllib.request.urlretrieve(self.applicationUrl, f'{dir_path}/new_version.exe')
-
-        if self.debugPath is None:
-            with open('version.json', 'r') as json_file:
-                data = json.load(json_file)
-                data['program']['version'] = nv
-                with open('version.json', 'w') as g:
-                    json.dump(data, g)
+            urllib.request.urlretrieve(self.webAppUrl, f'{dir_path}/new_version.exe')
         else:
-            with open(f'{self.debugPath}/version.json', 'r') as json_file:
-                data = json.load(json_file)
-                data['program']['version'] = nv
-                with open(f'{self.debugPath}/version.json', 'w') as g:
-                    json.dump(data, g)
+            urllib.request.urlretrieve(self.webAppUrl, f'{self.debugPath}/new_version.exe')
 
-        if self.debugPath is None:
+
+        with open(f'{self.applicationDir}/version.json', 'r') as json_file:
+            data = json.load(json_file)
+            data['program']['version'] = nv
+            with open(f'{self.applicationDir}/version.json', 'w') as g:
+                json.dump(data, g)
+
+        if getattr(sys, 'frozen', False):
             with open('rename.bat', 'w') as rn:
                 rn.write(f'''
                     timeout 1
@@ -121,7 +116,6 @@ class Update(object):
                     ren new_version*.exe {self.appName}.exe
                     {self.appName}.exe
                 ''')
-            devnull = open(os.devnull, 'wb')
             subprocess.Popen(['rename.bat'], shell=False)
         else:
             with open(f'{self.debugPath}/rename.bat', 'w') as rn:
@@ -131,7 +125,6 @@ class Update(object):
                     ren new_version*.exe {self.appName}.exe
                     {self.appName}.exe
                 ''')
-            devnull = open(os.devnull, 'wb')
             subprocess.Popen([f'{self.debugPath}/rename.bat'], shell=False)
         sys.exit()
 
