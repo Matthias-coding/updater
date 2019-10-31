@@ -1,4 +1,4 @@
-import firebasePort, json, sys, os, urllib.request, subprocess, requests
+import firebasePort, json, sys, os, urllib.request, subprocess, requests, zipfile, shutil
 if hasattr(sys, 'frozen'):
     os.environ['PATH'] = sys._MEIPASS + ";" + os.environ['PATH']
 from PyQt5 import QtGui
@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QApplication, QStyle
 '''Main class for updater'''
 class Update(object):
     '''Initialise (optional-)arguments and make them self'''
-    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False):
+    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False, assetsFolderUrl = None):
         self.config = config
         self.serverDomain = config['authDomain']
         self.webAppUrl = webAppUrl
@@ -27,6 +27,7 @@ class Update(object):
         
         if assetsFolder is True:
             self.applicationDir = f'{dir_}/assets'
+            self.assetsFolderUrl = assetsFolderUrl
         else:
             self.applicationDir = dir_
 
@@ -75,7 +76,7 @@ class Update(object):
             retval = 0
 
         if retval == 0:
-            self.updateApplication('.'.join(cloudVersion))
+            self.updateApplication('.'.join(cloudVersion), type_)
         elif retval == 1:
             data['program']['skipversion'] = '.'.join(cloudVersion)
             with open('version.json', 'w') as g:
@@ -90,7 +91,25 @@ class Update(object):
         except requests.ConnectionError: 
             return False
 
-    def updateApplication(self, nv):
+    def updateAssetsFolder(self, nv):
+        if getattr(sys, 'frozen', False):
+            dir_path = os.path.dirname(sys.executable)            
+        else:
+            dir_path = self.debugPath
+
+        shutil.rmtree(f'{dir_path}/assets')
+
+        urllib.request.urlretrieve(self.assetsFolderUrl, f'{dir_path}/new_assets.zip')
+
+        with zipfile.ZipFile(f'{dir_path}/new_assets.zip', 'r') as zip_ref:
+            zip_ref.extractall()
+
+        os.remove(f'{dir_path}/new_assets.zip')
+
+    def updateApplication(self, nv, type_):
+        if (type_ == 'update' or type_ == 'unstable') and self.assetsFolderUrl is not None:
+            self.updateAssetsFolder(nv)
+
         if getattr(sys, 'frozen', False):
             dir_path = os.path.dirname(sys.executable)
             urllib.request.urlretrieve(self.webAppUrl, f'{dir_path}/new_version.exe')
@@ -120,6 +139,7 @@ class Update(object):
                     del /f {self.appName}.exe
                     ren new_version*.exe {self.appName}.exe
                     {self.appName}.exe
+                    del /f rename.bat
                 ''')
             subprocess.Popen([f'{self.debugPath}/rename.bat'], shell=False)
         sys.exit()
