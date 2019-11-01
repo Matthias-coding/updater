@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QApplication, QStyle
 '''Main class for updater'''
 class Update(object):
     '''Initialise (optional-)arguments and make them self'''
-    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False, assetsFolderUrl = None, updateAssetsFolderEveryV=1):
+    def __init__(self, config, webAppUrl, appName, path, debugPath = None, displayErrorMessages = True, autoUpdate = False, assetsFolder = False, assetsFolderUrl = None, updateAssetsArg=1):
         self.config = config
         self.serverDomain = config['authDomain']
         self.webAppUrl = webAppUrl
@@ -32,7 +32,7 @@ class Update(object):
             self.applicationDir = dir_
 
         #Sets when the assets folder should be updated
-        self.updateAssetsArg = updateAssetsFolderEveryV
+        self.updateAssetsArg = updateAssetsArg
 
     '''Function to check for Updates'''
     def checkUpdate(self):
@@ -127,7 +127,7 @@ class Update(object):
         if type_ =< self.updateAssetsArg  and self.assetsFolderUrl is not None:
             self.updateAssetsFolder(nv)
 
-        #Check if programm is exe and download new version of the app
+        #Check if program is exe and download new version of the app
         if getattr(sys, 'frozen', False):
             dir_path = os.path.dirname(sys.executable)
             urllib.request.urlretrieve(self.webAppUrl, f'{dir_path}/new_version.exe')
