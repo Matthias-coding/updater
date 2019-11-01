@@ -32,7 +32,14 @@ class Update(object):
             self.applicationDir = dir_
 
         #Sets when the assets folder should be updated
-        self.updateAssetsArg = updateAssetsArg
+        self.updateAssetsArg = int(updateAssetsArg)
+
+        self.ownMessages()
+
+    def ownMessages(self, msg1 = None, msg2 = None, msg3 = None):
+        self.msg1 = msg1
+        self.msg2 = msg2
+        self.msg3 = msg3
 
     '''Function to check for Updates'''
     def checkUpdate(self):
@@ -79,7 +86,7 @@ class Update(object):
 
         #Check if autoupdate is enabled; if not: display message
         if not self.autoUpdate:
-            retval = MessageBox.newMessageBox(type_, '.'.join(localVersion), '.'.join(cloudVersion))
+            retval = MessageBox.newMessageBox(type_, '.'.join(localVersion), '.'.join(cloudVersion), msg1=self.msg1, msg2=self.msg2,msg3=self.msg3)
         else:
             retval = 0
 
@@ -124,7 +131,7 @@ class Update(object):
     '''Function to update the application'''
     def updateApplication(self, nv, type_):
         #Check if the assets folder should be updated
-        if type_ =< self.updateAssetsArg  and self.assetsFolderUrl is not None:
+        if type_ <= self.updateAssetsArg  and self.assetsFolderUrl is not None:
             self.updateAssetsFolder(nv)
 
         #Check if program is exe and download new version of the app
@@ -167,7 +174,7 @@ class Update(object):
 
 '''Class to display the message box'''
 class MessageBox(QMessageBox):
-    def __init__(self, type_, lv, cv, error):
+    def __init__(self, type_, lv, cv, error, msg1, msg2, msg3):
         super(MessageBox, self).__init__() 
         if error is None:
             self.setIcon(QMessageBox.Information)
@@ -177,7 +184,14 @@ class MessageBox(QMessageBox):
             self.addButton("Skip version", QMessageBox.NoRole)
             self.addButton("Ask later", QMessageBox.NoRole)
             
-            self.setText('Would you like to update the application to a newer version?')
+            if type_ == 1 and msg1 is not None:
+                self.setText(msg1)
+            elif type_ == 2 and msg2 is not None:
+                self.setText(msg2)
+            elif type_ == 3 and msg3 is not None:
+                self.setText(msg3)
+            else:
+                self.setText('Would you like to update the application to a newer version?')
             self.setInformativeText(f"<b>{lv} >>> {cv}</b>")
         else:
             if error == 'version_not_found':
@@ -192,10 +206,10 @@ class MessageBox(QMessageBox):
                 self.setText('Couldn\'t connect with the server! Unable to check for updates!')
 
     @staticmethod
-    def newMessageBox(type_ = None, lv = None, cv = None, error = None):
+    def newMessageBox(type_ = None, lv = None, cv = None, error = None, msg1 = None, msg2 = None, msg3 = None):
         app = QApplication(sys.argv)
         app.exec_
-        MessageBoxInstance = MessageBox(type_, lv, cv, error)
+        MessageBoxInstance = MessageBox(type_, lv, cv, error, msg1, msg2, msg3)
         retval = MessageBoxInstance.exec_()
         return retval
     
