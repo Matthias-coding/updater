@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import QApplication, QStyle
 '''Main class for updater'''
 class Update(object):
     '''Initialise (optional-)arguments and make them self'''
-    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False, assetsFolderUrl = None):
+    def __init__(self, config, webAppUrl, appName, path, displayErrorMessages = True, autoUpdate = False, debugPath = None, assetsFolder = False, assetsFolderUrl = None, updateAssetsFolderEveryV=1):
         self.config = config
         self.serverDomain = config['authDomain']
         self.webAppUrl = webAppUrl
@@ -31,17 +31,22 @@ class Update(object):
         else:
             self.applicationDir = dir_
 
+        #Sets when the assets folder should be updated
+        self.updateAssetsArg = updateAssetsFolderEveryV
 
+    '''Function to check for Updates'''
     def checkUpdate(self):
+        #Check internet connection
         if not self.internet_connection(self.serverDomain):
             if self.displayErrorMessages:
                 MessageBox.newMessageBox(error='server_timeout')
             return
         
+        #Get application version from firebase database
         self.firebase = firebasePort.Database(self.config)
         cloudVersion = self.firebase.getData(self.path)
         
-        
+        #Check if version.json existst and read current application version
         if os.path.exists(f'{self.applicationDir}/version.json'):
             with open(f'{self.applicationDir}/version.json', 'r') as json_file:
                 data = json.load(json_file)
@@ -54,22 +59,25 @@ class Update(object):
             skipVersion = data['program']['skipversion']
             with open(f'{self.applicationDir}/version.json', 'w') as f:
                 json.dump(data, f)
-                
+
+        #Check if the user decided to skip the version earlier        
         if cloudVersion == skipVersion:
             return
 
         localVersion = localVersion.split('.')
         cloudVersion = cloudVersion.split('.')      
 
+        #Check what type of update it is
         if cloudVersion[0] > localVersion[0]:
-            type_ =  'update'
+            type_ =  3
         elif cloudVersion[1] > localVersion[1]:
-            type_ = 'unstable'
+            type_ = 2
         elif cloudVersion[2] > localVersion[2]:
-            type_ = 'bugfixes'   
+            type_ = 1 
         else:
             return 'No update'
 
+        #Check if autoupdate is enabled; if not: display message
         if not self.autoUpdate:
             retval = MessageBox.newMessageBox(type_, '.'.join(localVersion), '.'.join(cloudVersion))
         else:
@@ -84,6 +92,7 @@ class Update(object):
         elif retval == 2:
             return
 
+    '''Function to check the internet connection'''
     def internet_connection(self, domain):
         try:
             requests.get(f'https://{domain}', timeout=5)
@@ -91,38 +100,48 @@ class Update(object):
         except requests.ConnectionError: 
             return False
 
+    '''Function to update the assets folder'''
     def updateAssetsFolder(self, nv):
+        #Checks if program is in exe and gets the application path
         if getattr(sys, 'frozen', False):
             dir_path = os.path.dirname(sys.executable)            
         else:
             dir_path = self.debugPath
 
+        #Deletes the old assets folder
         shutil.rmtree(f'{dir_path}/assets')
 
+        #Dowloading the new assets folder as .zip
         urllib.request.urlretrieve(self.assetsFolderUrl, f'{dir_path}/new_assets.zip')
 
+        #Unpacks the zip
         with zipfile.ZipFile(f'{dir_path}/new_assets.zip', 'r') as zip_ref:
             zip_ref.extractall()
 
+        #Removes the old zip file
         os.remove(f'{dir_path}/new_assets.zip')
 
+    '''Function to update the application'''
     def updateApplication(self, nv, type_):
-        if (type_ == 'update' or type_ == 'unstable') and self.assetsFolderUrl is not None:
+        #Check if the assets folder should be updated
+        if type_ =< self.updateAssetsArg  and self.assetsFolderUrl is not None:
             self.updateAssetsFolder(nv)
 
+        #Check if programm is exe and download new version of the app
         if getattr(sys, 'frozen', False):
             dir_path = os.path.dirname(sys.executable)
             urllib.request.urlretrieve(self.webAppUrl, f'{dir_path}/new_version.exe')
         else:
             urllib.request.urlretrieve(self.webAppUrl, f'{self.debugPath}/new_version.exe')
 
-
+        #Updates the version in the version.json file
         with open(f'{self.applicationDir}/version.json', 'r') as json_file:
             data = json.load(json_file)
             data['program']['version'] = nv
             with open(f'{self.applicationDir}/version.json', 'w') as g:
                 json.dump(data, g)
 
+        #Creates a .bat file to rename the old version and delete the old one
         if getattr(sys, 'frozen', False):
             with open('rename.bat', 'w') as rn:
                 rn.write(f'''
@@ -142,8 +161,11 @@ class Update(object):
                     del /f rename.bat
                 ''')
             subprocess.Popen([f'{self.debugPath}/rename.bat'], shell=False)
+
+        #Exit the process
         sys.exit()
 
+'''Class to display the message box'''
 class MessageBox(QMessageBox):
     def __init__(self, type_, lv, cv, error):
         super(MessageBox, self).__init__() 
@@ -155,12 +177,7 @@ class MessageBox(QMessageBox):
             self.addButton("Skip version", QMessageBox.NoRole)
             self.addButton("Ask later", QMessageBox.NoRole)
             
-            if type_ == 'update':
-                self.setText('Would you like to update the application to a new version?')
-            elif type_ == 'unstable':
-                self.setText('Would you like to update the application to a new version?<br> <b> It might be unstable!</b>')
-            elif type_ == 'bugfixes':
-                self.setText('There are some bugfixes available for this apllication.<br> Would you like to update?')
+            self.setText('Would you like to update the application to a newer version?')
             self.setInformativeText(f"<b>{lv} >>> {cv}</b>")
         else:
             if error == 'version_not_found':
