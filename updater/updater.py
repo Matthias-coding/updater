@@ -1,10 +1,15 @@
-import firebasePort, json, sys, os, urllib.request, subprocess, requests, zipfile, shutil
+import firebasePort, json, sys, os, urllib.request, subprocess, requests, zipfile, shutil, time
 if hasattr(sys, 'frozen'):
     os.environ['PATH'] = sys._MEIPASS + ";" + os.environ['PATH']
 from PyQt5 import QtGui
 from PyQt5.Qt import QMessageBox
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QStyle
+
+class Rename(object):
+    def __init__(self):
+        pass
+
 
 '''Main class for updater'''
 class Update(object):
@@ -22,6 +27,12 @@ class Update(object):
         #Check if program is in exe; if true deactivate debugPath for library
         if getattr(sys, 'frozen', False):
             dir_ = os.path.dirname(sys.executable)
+            exeName = sys.argv[0]
+            if exeName == 'new_version.exe':
+                time.sleep(1)
+                os.remove(f'{dir_}/{appName}.exe')
+                time.sleep(1)
+                os.rename(dir_+r'/new_version.exe', dir_+r'/'+appName+r'.exe')
         else:
             dir_ = self.debugPath
         
@@ -149,25 +160,28 @@ class Update(object):
                 json.dump(data, g)
 
         #Creates a .bat file to rename the old version and delete the old one
+        # if getattr(sys, 'frozen', False):
+        #     with open('rename.bat', 'w') as rn:
+        #         rn.write(f'''
+        #             timeout 1
+        #             del /f {self.appName}.exe
+        #             ren new_version*.exe {self.appName}.exe
+        #             {self.appName}.exe
+        #         ''')
+        #     subprocess.Popen(['rename.bat'], shell=False)
+        # else:
+        #     with open(f'{self.debugPath}/rename.bat', 'w') as rn:
+        #         rn.write(f'''
+        #             timeout 1
+        #             del /f {self.appName}.exe
+        #             ren new_version*.exe {self.appName}.exe
+        #             {self.appName}.exe
+        #             del /f rename.bat
+        #         ''')
         if getattr(sys, 'frozen', False):
-            with open('rename.bat', 'w') as rn:
-                rn.write(f'''
-                    timeout 1
-                    del /f {self.appName}.exe
-                    ren new_version*.exe {self.appName}.exe
-                    {self.appName}.exe
-                ''')
-            subprocess.Popen(['rename.bat'], shell=False)
+            subprocess.Popen([f'new_version.exe'], shell=False)
         else:
-            with open(f'{self.debugPath}/rename.bat', 'w') as rn:
-                rn.write(f'''
-                    timeout 1
-                    del /f {self.appName}.exe
-                    ren new_version*.exe {self.appName}.exe
-                    {self.appName}.exe
-                    del /f rename.bat
-                ''')
-            subprocess.Popen([f'{self.debugPath}/rename.bat'], shell=False)
+            subprocess.Popen([f'{self.debugPath}/new_version.exe'], shell=False)
 
         #Exit the process
         sys.exit()
